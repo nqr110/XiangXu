@@ -9,7 +9,15 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from src.config import PROJECT_ROOT, load_settings, logger
+from src.config import (
+    CONSOLE_HEIGHT,
+    CONSOLE_MIN_HEIGHT,
+    CONSOLE_MIN_WIDTH,
+    CONSOLE_WIDTH,
+    PROJECT_ROOT,
+    load_settings,
+    logger,
+)
 
 # #region agent log
 def _debug_log(location: str, message: str, data: dict, hypothesis_id: str):
@@ -41,6 +49,15 @@ from src.theme import (
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
+# 双屏/多屏下拖到屏幕边缘时，CustomTkinter 的 DPI 缩放回调会误把控件路径当颜色传入，
+# 导致 TclError 且主窗口透明度异常。关闭自动 DPI 检测可避免该问题。
+ctk.deactivate_automatic_dpi_awareness()
+# 使用弧线绘制圆角，减轻锯齿感（默认 font_shapes 在部分环境下圆角锯齿明显）
+try:
+    ctk.DrawEngine.preferred_drawing_method = "circle_shapes"
+except Exception:
+    pass
+
 
 class App(ctk.CTk):
     """主应用窗口"""
@@ -48,8 +65,12 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("象胥")
-        self.geometry("920x620")
-        self.minsize(720, 520)
+        settings = load_settings()
+        # 启动宽高：优先 config.json（用户曾在设置页保存），否则 .env；且不小于 .env 中的最小宽高
+        w = max(CONSOLE_MIN_WIDTH, int(settings.get("console_width") or CONSOLE_WIDTH))
+        h = max(CONSOLE_MIN_HEIGHT, int(settings.get("console_height") or CONSOLE_HEIGHT))
+        self.geometry(f"{w}x{h}")
+        self.minsize(CONSOLE_MIN_WIDTH, CONSOLE_MIN_HEIGHT)
         self.configure(fg_color=BG_MAIN)
 
         self._recognition_page: RecognitionPage | None = None
@@ -66,6 +87,8 @@ class App(ctk.CTk):
 
         self._build_ui()
         self._wire_recognition()
+        # 主窗口始终不透明，防止跨屏 DPI 异常后误被设为半透明
+        self._ensure_main_window_opaque()
 
     def _build_ui(self):
         # 左侧导航栏（卡片式、圆角）
@@ -139,9 +162,13 @@ class App(ctk.CTk):
             on_close_overlay=self._close_overlay,
             is_overlay_open=self._is_overlay_open,
             on_apply_config=self._apply_overlay_config,
+            on_lock_overlay=self._set_overlay_lock,
         )
         self._pages["overlay"] = self._overlay_page
-        self._pages["settings"] = SettingsPage(self.content)
+        self._pages["settings"] = SettingsPage(
+            self.content,
+            on_apply_console_size=self._apply_console_size,
+        )
 
         self._show_page("recognition")  # 会同时高亮导航
 
@@ -185,6 +212,7 @@ class App(ctk.CTk):
 
         self._overlay_window.protocol("WM_DELETE_WINDOW", on_close)
         self._overlay_page.set_overlay_open(True)
+        self._overlay_page.set_overlay_locked(False)
 
     def _close_overlay(self):
         if self._overlay_window and self._overlay_window.winfo_exists():
@@ -197,6 +225,11 @@ class App(ctk.CTk):
     def _apply_overlay_config(self):
         if self._overlay_window and self._overlay_window.winfo_exists():
             self._overlay_window.apply_config()
+
+    def _set_overlay_lock(self, locked: bool) -> None:
+        """设置小窗是否锁定（鼠标穿透），供小窗页「窗口锁定」按钮调用。"""
+        if self._overlay_window and self._overlay_window.winfo_exists():
+            self._overlay_window.set_mouse_passthrough(locked)
 
     def _set_window_icon(self, logo_path: Path | None):
         if not logo_path:
@@ -242,6 +275,27 @@ class App(ctk.CTk):
                 if logger:
                     logger.warning("未安装 Pillow，无法设置窗口图标。请使用项目 .venv 并执行: pip install -r requirements.txt")
             pass
+
+    def _apply_console_size(self, width: int, height: int):
+        """应用控制台窗口尺寸（由设置页保存时调用）"""
+        try:
+            if self.winfo_exists():
+                self.geometry(f"{width}x{height}")
+        except Exception:
+            pass
+
+    def _ensure_main_window_opaque(self):
+        """保证主窗口始终不透明，避免双屏拖拽触发的 DPI 缩放异常导致窗口变透明"""
+        self.attributes("-alpha", 1.0)
+
+        def _on_configure(_event=None):
+            try:
+                if self.winfo_exists():
+                    self.attributes("-alpha", 1.0)
+            except Exception:
+                pass
+
+        self.bind("<Configure>", _on_configure, add=True)
 
     def _wire_recognition(self):
         """将识别页与 gummy_client、audio_capture 联动"""

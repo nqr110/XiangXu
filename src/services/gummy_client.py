@@ -2,6 +2,7 @@
 import asyncio
 import json
 import queue
+import time
 import uuid
 from typing import Callable
 
@@ -118,8 +119,8 @@ async def _run_task_async(
                             if DEBUG_MODE and logger and (trans_text or trans_tr):
                                 logger.debug("result: 识别=%r (end=%s) 翻译=%r (end=%s)", trans_text, trans_end, trans_tr, tr_end)
                         elif ev == "task-finished":
-                            if DEBUG_MODE and logger:
-                                logger.debug("收到 task-finished")
+                            if logger:
+                                logger.info("服务端结束任务 (task-finished)，可能因长时间无语音超时，将自动重连")
                             break
                         elif ev == "task-failed":
                             err = msg.get("payload", {}).get("header", {})
@@ -186,7 +187,7 @@ def run_realtime_session(
     result_callback: Callable[[str, str, bool, bool], None],
     stop_check: Callable[[], bool],
 ) -> None:
-    """同步入口：在独立线程中运行异步任务"""
+    """同步入口：在独立线程中运行异步任务。连接断开（如长时间无语音被服务端关闭）时会自动重连，直到用户点击停止。"""
     settings = load_settings()
     api_key = settings.get("api_key", "").strip()
     if not api_key:
@@ -200,14 +201,28 @@ def run_realtime_session(
             logger.error("至少需开启识别或翻译之一")
         return
 
-    _run_async(
-        _run_task_async(
-            api_key=api_key,
-            transcription_enabled=transcription_enabled,
-            translation_enabled=translation_enabled,
-            translation_target_languages=translation_target_languages,
-            audio_queue=audio_queue,
-            result_callback=result_callback,
-            stop_check=stop_check,
+    reconnect_delay_sec = 3
+    run_count = 0
+    while not stop_check():
+        run_count += 1
+        if logger and run_count > 1:
+            logger.info("正在建立第 %d 次实时会话连接…", run_count)
+        _run_async(
+            _run_task_async(
+                api_key=api_key,
+                transcription_enabled=transcription_enabled,
+                translation_enabled=translation_enabled,
+                translation_target_languages=translation_target_languages,
+                audio_queue=audio_queue,
+                result_callback=result_callback,
+                stop_check=stop_check,
+            )
         )
-    )
+        if stop_check():
+            break
+        if logger:
+            logger.warning("实时会话已断开（可能因长时间无语音被服务端关闭），%s 秒后自动重连…", reconnect_delay_sec)
+        for _ in range(reconnect_delay_sec * 10):
+            if stop_check():
+                return
+            time.sleep(0.1)

@@ -78,6 +78,7 @@ if defined NEED_INSTALL (
 )
 
 if not exist "%ROOT%.env" if exist "%ROOT%.env.example" copy "%ROOT%.env.example" "%ROOT%.env" >nul
+if not exist "%ROOT%config.json" if exist "%ROOT%config.json.example" copy "%ROOT%config.json.example" "%ROOT%config.json" >nul
 
 echo [3/3] Starting main.py ...
 "%VENV_PY%" "%ROOT%main.py"

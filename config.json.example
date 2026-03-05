@@ -1,0 +1,24 @@
+{
+  "api_key": "",
+  "translation_target_languages": [
+    "zh"
+  ],
+  "console_width": 1104,
+  "console_height": 620,
+  "overlay": {
+    "width_pct": 30.0,
+    "height_pct": 17.0,
+    "corner_style": "rounded",
+    "corner_radius": 20,
+    "simple_mode": true,
+    "split_subtitle_mode": true,
+    "bg_color": "#1a1a1a",
+    "bg_alpha": 0.88,
+    "font_family": "Microsoft YaHei",
+    "font_size": 16,
+    "text_color": "#e5e5e5",
+    "text_alpha": 1.0,
+    "line_spacing": 8,
+    "align": "left"
+  }
+}

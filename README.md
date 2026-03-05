@@ -79,5 +79,5 @@ python main.py
 4. 非常感谢你的支持，但是我只是一个职业本科的大一的学生，项目一般由我个人维护，会尽量保证更新速度
 5. 最后欢迎扫码进群唠嗑
 
-![QQ群码](images/QQ群码.jpg "QQ群码")
-![支付宝收款码](images/支付宝收款码.jpg "支付宝收款码")
+<img src="images/QQ群码.jpg" alt="QQ群码" width="200" />
+<img src="images/支付宝收款码.jpg" alt="支付宝收款码" width="200" />
