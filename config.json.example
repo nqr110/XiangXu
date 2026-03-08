@@ -1,10 +1,11 @@
 {
   "api_key": "",
+  "source_language": "en",
   "translation_target_languages": [
     "zh"
   ],
   "console_width": 1104,
-  "console_height": 620,
+  "console_height": 682,
   "overlay": {
     "width_pct": 30.0,
     "height_pct": 17.0,
@@ -19,6 +20,8 @@
     "text_color": "#e5e5e5",
     "text_alpha": 1.0,
     "line_spacing": 8,
-    "align": "left"
+    "align": "left",
+    "position_x_pct": 50,
+    "position_y_pct": 50
   }
 }

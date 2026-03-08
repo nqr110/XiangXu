@@ -4,14 +4,23 @@ import customtkinter as ctk
 from src.config import OVERLAY_DEFAULTS, load_settings, logger, save_settings
 from src.theme import (
     ACCENT,
+    ACCENT_HOVER,
     BG_CARD,
+    BORDER_COLOR,
     BTN_RADIUS,
     BTN_SECONDARY_BORDER,
     BTN_SECONDARY_FG,
     BTN_SECONDARY_HOVER,
     BTN_SECONDARY_TEXT,
     CARD_RADIUS,
+    INPUT_BORDER_WIDTH,
     INPUT_RADIUS,
+    OPTION_MENU_BUTTON,
+    OPTION_MENU_INNER_RADIUS,
+    OPTION_MENU_BUTTON_HOVER,
+    OPTION_MENU_DROPDOWN_FG,
+    OPTION_MENU_DROPDOWN_HOVER,
+    OPTION_MENU_FG,
     TEXT_BODY,
     TEXT_HEADING,
 )
@@ -62,7 +71,7 @@ class OverlayPage(ctk.CTkFrame):
             height=40,
             corner_radius=BTN_RADIUS,
             fg_color=ACCENT,
-            hover_color="#1d4ed8",
+            hover_color=ACCENT_HOVER,
             text_color="white",
         )
         self._toggle_btn.pack(side="left", padx=(0, 12))
@@ -126,7 +135,7 @@ class OverlayPage(ctk.CTkFrame):
         self._refresh_mode_buttons()
 
     def _build_section_size(self):
-        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color="#e5e7eb")
+        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color=BORDER_COLOR)
         card.pack(fill="x", pady=(0, 12))
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=24, pady=20)
@@ -151,6 +160,19 @@ class OverlayPage(ctk.CTkFrame):
             text_color=BTN_SECONDARY_TEXT,
             hover_color=BTN_SECONDARY_HOVER,
             command=self._restore_default_size,
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(
+            row,
+            text="恢复默认位置",
+            width=100,
+            height=32,
+            corner_radius=BTN_RADIUS,
+            fg_color=BTN_SECONDARY_FG,
+            border_width=1,
+            border_color=BTN_SECONDARY_BORDER,
+            text_color=BTN_SECONDARY_TEXT,
+            hover_color=BTN_SECONDARY_HOVER,
+            command=self._restore_default_position,
         ).pack(side="left")
         self._width_pct.bind("<FocusOut>", lambda e: self._save_and_apply())
         self._height_pct.bind("<FocusOut>", lambda e: self._save_and_apply())
@@ -158,14 +180,29 @@ class OverlayPage(ctk.CTkFrame):
         row2 = ctk.CTkFrame(inner, fg_color="transparent")
         row2.pack(fill="x", pady=(12, 0))
         ctk.CTkLabel(row2, text="边角", width=48, text_color=TEXT_BODY).pack(side="left", padx=(0, 8))
-        self._corner_style = ctk.CTkOptionMenu(
+        corner_style_wrap = ctk.CTkFrame(
             row2,
+            fg_color=OPTION_MENU_FG,
+            corner_radius=INPUT_RADIUS,
+            border_width=INPUT_BORDER_WIDTH,
+            border_color=BORDER_COLOR,
+        )
+        corner_style_wrap.pack(side="left", padx=(0, 16))
+        self._corner_style = ctk.CTkOptionMenu(
+            corner_style_wrap,
             values=["圆角", "直角"],
             width=100,
             height=36,
+            corner_radius=OPTION_MENU_INNER_RADIUS,
+            fg_color=OPTION_MENU_FG,
+            button_color=OPTION_MENU_BUTTON,
+            button_hover_color=OPTION_MENU_BUTTON_HOVER,
+            dropdown_fg_color=OPTION_MENU_DROPDOWN_FG,
+            dropdown_hover_color=OPTION_MENU_DROPDOWN_HOVER,
+            text_color=TEXT_BODY,
             command=lambda v: self._save_and_apply(),
         )
-        self._corner_style.pack(side="left", padx=(0, 16))
+        self._corner_style.pack(padx=INPUT_BORDER_WIDTH, pady=INPUT_BORDER_WIDTH)
         ctk.CTkLabel(row2, text="圆角弧度", width=64, text_color=TEXT_BODY).pack(side="left", padx=(0, 8))
         self._corner_radius_entry = ctk.CTkEntry(
             row2, width=64, height=36, corner_radius=INPUT_RADIUS, placeholder_text="12",
@@ -174,7 +211,7 @@ class OverlayPage(ctk.CTkFrame):
         self._corner_radius_entry.bind("<FocusOut>", lambda e: self._save_and_apply())
 
     def _build_section_bg(self):
-        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color="#e5e7eb")
+        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color=BORDER_COLOR)
         card.pack(fill="x", pady=(0, 12))
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=24, pady=20)
@@ -204,7 +241,7 @@ class OverlayPage(ctk.CTkFrame):
         self._bg_alpha.bind("<FocusOut>", lambda e: self._save_and_apply())
 
     def _build_section_text(self):
-        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color="#e5e7eb")
+        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=CARD_RADIUS, border_width=1, border_color=BORDER_COLOR)
         card.pack(fill="x", pady=(0, 12))
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=24, pady=20)
@@ -243,14 +280,29 @@ class OverlayPage(ctk.CTkFrame):
         self._line_spacing = ctk.CTkEntry(row2, width=80, height=36, corner_radius=INPUT_RADIUS, placeholder_text="8")
         self._line_spacing.pack(side="left", padx=(0, 24))
         ctk.CTkLabel(row2, text="对齐", width=40, text_color=TEXT_BODY).pack(side="left", padx=(0, 8))
-        self._align = ctk.CTkOptionMenu(
+        align_wrap = ctk.CTkFrame(
             row2,
+            fg_color=OPTION_MENU_FG,
+            corner_radius=INPUT_RADIUS,
+            border_width=INPUT_BORDER_WIDTH,
+            border_color=BORDER_COLOR,
+        )
+        align_wrap.pack(side="left")
+        self._align = ctk.CTkOptionMenu(
+            align_wrap,
             values=["left", "center", "right"],
             width=120,
             height=36,
+            corner_radius=OPTION_MENU_INNER_RADIUS,
+            fg_color=OPTION_MENU_FG,
+            button_color=OPTION_MENU_BUTTON,
+            button_hover_color=OPTION_MENU_BUTTON_HOVER,
+            dropdown_fg_color=OPTION_MENU_DROPDOWN_FG,
+            dropdown_hover_color=OPTION_MENU_DROPDOWN_HOVER,
+            text_color=TEXT_BODY,
             command=lambda v: self._save_and_apply(),
         )
-        self._align.pack(side="left")
+        self._align.pack(padx=INPUT_BORDER_WIDTH, pady=INPUT_BORDER_WIDTH)
         self._font_family.bind("<FocusOut>", lambda e: self._save_and_apply())
         self._font_size.bind("<FocusOut>", lambda e: self._save_and_apply())
         self._text_color.bind("<FocusOut>", lambda e: self._save_and_apply())
@@ -330,6 +382,19 @@ class OverlayPage(ctk.CTkFrame):
         self._corner_radius_entry.delete(0, "end")
         self._corner_radius_entry.insert(0, str(d.get("corner_radius", 12)))
         self._save_and_apply()
+
+    def _restore_default_position(self):
+        """清除已保存的小窗位置，使小窗使用默认居中位置"""
+        cfg = _overlay_cfg()
+        cfg.pop("position_x_pct", None)
+        cfg.pop("position_y_pct", None)
+        cfg.pop("position_x", None)
+        cfg.pop("position_y", None)
+        _save_overlay_cfg(cfg)
+        if self._on_apply:
+            self._on_apply()
+        if logger:
+            logger.debug("小窗位置已恢复默认")
 
     def _restore_default_bg(self):
         d = OVERLAY_DEFAULTS["overlay"]
@@ -431,12 +496,11 @@ class OverlayPage(ctk.CTkFrame):
         self._update_lock_btn_text()
 
     def refresh_toggle_button(self):
-        """进入页面时根据当前小窗状态刷新按钮"""
+        """进入页面时根据当前小窗状态刷新按钮（不重载配置表单，避免 I/O 与大量控件更新）"""
         self._toggle_btn.configure(text="关闭小窗" if self._is_open() else "打开小窗")
         open_ = self._is_open()
         self._lock_btn.configure(state="normal" if open_ else "disabled")
         if not open_:
             self._overlay_locked = False
         self._update_lock_btn_text()
-        self._load_into_entries()
         self._refresh_mode_buttons()

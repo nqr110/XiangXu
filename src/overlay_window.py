@@ -2,7 +2,7 @@
 import sys
 import customtkinter as ctk
 
-from src.config import load_settings
+from src.config import load_settings, save_settings
 from src.pages.recognition_page import DisplayTarget
 
 
@@ -171,6 +171,8 @@ class OverlayWindow(ctk.CTkToplevel):
         # 去掉标题栏，任意位置可拖动
         self.overrideredirect(True)
         self._bind_drag()
+        # 定时重新应用置顶，防止被游戏全屏无边框窗口覆盖后失效
+        self._schedule_topmost_refresh()
 
     def _set_textbox_readonly(self, readonly: bool):
         """设置文本框只读（不可编辑）或可编辑。小窗仅展示用，应保持只读。"""
@@ -192,11 +194,23 @@ class OverlayWindow(ctk.CTkToplevel):
         self._textbox.bind("<MouseWheel>", _on_wheel)
         self._textbox._textbox.bind("<MouseWheel>", _on_wheel)
 
+    def _schedule_topmost_refresh(self):
+        """每隔一段时间重新应用置顶，避免被全屏/无边框游戏窗口抢走 Z-order"""
+        def _refresh():
+            try:
+                if self.winfo_exists():
+                    self.attributes("-topmost", True)
+                    self.after(2000, _refresh)
+            except Exception:
+                pass
+        self.after(2000, _refresh)
+
     def _bind_drag(self):
-        """在窗口、内层框架和文本框上绑定：按下与拖动时移动窗口"""
+        """在窗口、内层框架和文本框上绑定：按下与拖动时移动窗口；松开时保存位置"""
         for w in (self, self._inner_frame, self._textbox):
             w.bind("<ButtonPress-1>", self._on_drag_start)
             w.bind("<B1-Motion>", self._on_drag_motion)
+            w.bind("<ButtonRelease-1>", self._on_drag_release)
 
     def _on_drag_start(self, event):
         self._drag_start_root_x = event.x_root
@@ -208,6 +222,34 @@ class OverlayWindow(ctk.CTkToplevel):
         dx = event.x_root - self._drag_start_root_x
         dy = event.y_root - self._drag_start_root_y
         self.geometry(f"+{self._drag_start_win_x + dx}+{self._drag_start_win_y + dy}")
+
+    def _on_drag_release(self, event):
+        self.after(50, self._save_position)
+
+    def _save_position(self) -> None:
+        """将当前小窗位置以相对位置（百分比）写入 config.json，适配不同分辨率"""
+        try:
+            if not self.winfo_exists():
+                return
+            sw, sh = _screen_size(self)
+            w = self.winfo_width()
+            h = self.winfo_height()
+            x = self.winfo_x()
+            y = self.winfo_y()
+            range_x = max(1, sw - w)
+            range_y = max(1, sh - h)
+            x_pct = max(0.0, min(100.0, 100.0 * x / range_x))
+            y_pct = max(0.0, min(100.0, 100.0 * y / range_y))
+            settings = load_settings()
+            overlay = settings.get("overlay") or {}
+            overlay["position_x_pct"] = round(x_pct, 2)
+            overlay["position_y_pct"] = round(y_pct, 2)
+            overlay.pop("position_x", None)
+            overlay.pop("position_y", None)
+            settings["overlay"] = overlay
+            save_settings(settings)
+        except Exception:
+            pass
 
     def get_display_target(self) -> DisplayTarget:
         return self._display_target
@@ -251,7 +293,33 @@ class OverlayWindow(ctk.CTkToplevel):
         h_pct = max(5, min(95, float(cfg.get("height_pct", 40))))
         w = int(sw * w_pct / 100)
         h = int(sh * h_pct / 100)
-        self.geometry(f"{w}x{h}")
+        def_x = (sw - w) // 2
+        def_y = (sh - h) // 2
+        margin = 50
+        try:
+            px_pct = cfg.get("position_x_pct")
+            py_pct = cfg.get("position_y_pct")
+            if px_pct is not None and py_pct is not None:
+                px = max(0.0, min(100.0, float(px_pct)))
+                py = max(0.0, min(100.0, float(py_pct)))
+                range_x = max(0, sw - w)
+                range_y = max(0, sh - h)
+                x = int(range_x * px / 100) if range_x else 0
+                y = int(range_y * py / 100) if range_y else 0
+            else:
+                # 兼容旧配置：仅有 position_x/position_y 时按像素使用
+                px_abs = cfg.get("position_x")
+                py_abs = cfg.get("position_y")
+                if px_abs is not None and py_abs is not None:
+                    x = int(float(px_abs))
+                    y = int(float(py_abs))
+                    x = max(-w + margin, min(sw - margin, x))
+                    y = max(-h + margin, min(sh - margin, y))
+                else:
+                    x, y = def_x, def_y
+        except (TypeError, ValueError):
+            x, y = def_x, def_y
+        self.geometry(f"{w}x{h}+{x}+{y}")
         self.minsize(120, 80)
 
         bg = str(cfg.get("bg_color", "#1a1a1a"))

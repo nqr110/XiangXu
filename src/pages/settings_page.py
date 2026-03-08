@@ -13,9 +13,12 @@ from src.config import (
 )
 from src.theme import (
     ACCENT,
+    ACCENT_HOVER,
     BG_CARD,
+    BORDER_COLOR,
     BTN_RADIUS,
     CARD_RADIUS,
+    INPUT_BG,
     INPUT_RADIUS,
     TEXT_BODY,
     TEXT_HEADING,
@@ -49,7 +52,7 @@ class SettingsPage(ctk.CTkFrame):
             fg_color=BG_CARD,
             corner_radius=CARD_RADIUS,
             border_width=1,
-            border_color="#e5e7eb",
+            border_color=BORDER_COLOR,
         )
         card.pack(fill="x", pady=(0, 16))
         api_inner = ctk.CTkFrame(card, fg_color="transparent")
@@ -68,8 +71,8 @@ class SettingsPage(ctk.CTkFrame):
             width=420,
             height=40,
             corner_radius=INPUT_RADIUS,
-            border_color="#e5e7eb",
-            fg_color="#fafafa",
+            border_color=BORDER_COLOR,
+            fg_color=INPUT_BG,
             text_color=TEXT_BODY,
         )
         self.api_key_entry.pack(anchor="w", pady=(8, 0))
@@ -80,7 +83,7 @@ class SettingsPage(ctk.CTkFrame):
             fg_color=BG_CARD,
             corner_radius=CARD_RADIUS,
             border_width=1,
-            border_color="#e5e7eb",
+            border_color=BORDER_COLOR,
         )
         console_card.pack(fill="x", pady=(0, 16))
         console_inner = ctk.CTkFrame(console_card, fg_color="transparent")
@@ -102,13 +105,23 @@ class SettingsPage(ctk.CTkFrame):
         row.pack(fill="x")
         ctk.CTkLabel(row, text="宽度", width=48, text_color=TEXT_BODY).pack(side="left", padx=(0, 8))
         self._console_width = ctk.CTkEntry(
-            row, width=100, height=36, corner_radius=INPUT_RADIUS,
+            row,
+            width=100,
+            height=36,
+            corner_radius=INPUT_RADIUS,
+            border_color=BORDER_COLOR,
+            fg_color=INPUT_BG,
             placeholder_text=str(CONSOLE_WIDTH),
         )
         self._console_width.pack(side="left", padx=(0, 16))
         ctk.CTkLabel(row, text="高度", width=48, text_color=TEXT_BODY).pack(side="left", padx=(0, 8))
         self._console_height = ctk.CTkEntry(
-            row, width=100, height=36, corner_radius=INPUT_RADIUS,
+            row,
+            width=100,
+            height=36,
+            corner_radius=INPUT_RADIUS,
+            border_color=BORDER_COLOR,
+            fg_color=INPUT_BG,
             placeholder_text=str(CONSOLE_HEIGHT),
         )
         self._console_height.pack(side="left")
@@ -122,7 +135,7 @@ class SettingsPage(ctk.CTkFrame):
             height=40,
             corner_radius=BTN_RADIUS,
             fg_color=ACCENT,
-            hover_color="#1d4ed8",
+            hover_color=ACCENT_HOVER,
             text_color="white",
         )
         self.save_btn.pack(pady=24, anchor="w")

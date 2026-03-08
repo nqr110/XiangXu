@@ -2,7 +2,10 @@
 config.json
 .env
 
-# 项目虚拟环境（用户本地 run.bat 创建）
+# 打包时由 build.bat 从 logo.jpg 生成
+images/logo.ico
+
+# 项目虚拟环境（本地 run.bat 创建，不提交）
 .venv/
 venv/
 env/

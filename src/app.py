@@ -15,6 +15,7 @@ from src.config import (
     CONSOLE_MIN_WIDTH,
     CONSOLE_WIDTH,
     PROJECT_ROOT,
+    RESOURCES_DIR,
     load_settings,
     logger,
 )
@@ -37,26 +38,37 @@ from src.overlay_window import OverlayWindow
 from src.services.audio_capture import capture_loopback
 from src.services.gummy_client import run_realtime_session
 from src.theme import (
+    ACCENT,
     BG_MAIN,
     BG_NAV,
+    BORDER_COLOR,
     BTN_RADIUS,
-    CARD_RADIUS,
+    BTN_SECONDARY_HOVER,
     NAV_ACTIVE_FG,
     NAV_ACTIVE_TEXT,
+    TEXT_BODY,
 )
 
 # 浅色主题
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
-# 双屏/多屏下拖到屏幕边缘时，CustomTkinter 的 DPI 缩放回调会误把控件路径当颜色传入，
-# 导致 TclError 且主窗口透明度异常。关闭自动 DPI 检测可避免该问题。
-ctk.deactivate_automatic_dpi_awareness()
-# 使用弧线绘制圆角，减轻锯齿感（默认 font_shapes 在部分环境下圆角锯齿明显）
+# DPI：默认开启 DPI 感知以在高分屏下获得清晰圆角与边框。仅当出现双屏/多屏拖拽导致的
+# TclError 或主窗口透明度异常时，在 .env 或环境中设置 CTK_DEACTIVATE_DPI=1 再关闭（会牺牲清晰度）。
+if os.getenv("CTK_DEACTIVATE_DPI", "").strip().lower() in ("1", "true", "yes"):
+    ctk.deactivate_automatic_dpi_awareness()
+
+# 圆角绘制方式：默认 font_shapes 以使用抗锯齿圆角，减轻钝齿/毛刺。若环境存在字体或渲染异常，
+# 可设置 CTK_DRAW_METHOD=circle_shapes 或 polygon_shapes 回退。
+_draw_method = (os.getenv("CTK_DRAW_METHOD", "font_shapes") or "font_shapes").strip().lower()
+if _draw_method not in ("font_shapes", "circle_shapes", "polygon_shapes"):
+    _draw_method = "font_shapes"
 try:
-    ctk.DrawEngine.preferred_drawing_method = "circle_shapes"
+    ctk.DrawEngine.preferred_drawing_method = _draw_method
 except Exception:
-    pass
+    ctk.DrawEngine.preferred_drawing_method = "circle_shapes"
+    if logger:
+        logger.warning("CTK_DRAW_METHOD=%s 设置失败，已回退为 circle_shapes", _draw_method)
 
 
 class App(ctk.CTk):
@@ -77,6 +89,8 @@ class App(ctk.CTk):
         self._current_page: ctk.CTkFrame | None = None
         self._current_nav_key: str = ""
         self._nav_buttons: dict[str, ctk.CTkButton] = {}
+        self._nav_indicators: dict[str, ctk.CTkFrame] = {}
+        self._nav_left_cover: dict[str, ctk.CTkFrame] = {}
         self._pages: dict[str, ctk.CTkFrame] = {}
         self._overlay_window: OverlayWindow | None = None
         self._overlay_display_target = None  # DisplayTarget from overlay
@@ -89,41 +103,43 @@ class App(ctk.CTk):
         self._wire_recognition()
         # 主窗口始终不透明，防止跨屏 DPI 异常后误被设为半透明
         self._ensure_main_window_opaque()
+        # 获得焦点时置前，避免被游戏全屏无边框窗口抢走后无法恢复
+        self._bind_focus_lift()
 
     def _build_ui(self):
-        # 左侧导航栏（卡片式、圆角）
+        # 左侧导航栏：靠左列表样式，独立背景色
         nav = ctk.CTkFrame(
             self,
-            width=168,
+            width=172,
             fg_color=BG_NAV,
-            corner_radius=CARD_RADIUS,
+            corner_radius=0,
             border_width=0,
         )
-        nav.pack(side="left", fill="y", padx=16, pady=16)
+        nav.pack(side="left", fill="y", padx=(0, 0), pady=0)
         nav.pack_propagate(False)
+        nav_inner = ctk.CTkFrame(nav, fg_color="transparent")
+        nav_inner.pack(side="top", fill="x", expand=False, padx=12, pady=(12, 12))
 
-        logo_path = PROJECT_ROOT / "images" / "logo.jpg"
+        logo_path = RESOURCES_DIR / "images" / "logo.jpg"
         # #region agent log
         _debug_log("app.py:logo_path", "logo path resolution", {"project_root": str(PROJECT_ROOT), "logo_path": str(logo_path), "exists": logo_path.exists()}, "H1")
         # #endregion
-        # Logo（原图 461x462 不预压缩，仅指定显示尺寸 168 以适配导航栏宽度，由 CTk 一次缩放）
+        # Logo
         if logo_path.exists():
             try:
-                # 直接使用原图路径 + 显示尺寸 168，避免先缩成 96 再放大导致模糊
-                logo_img = ctk.CTkImage(light_image=str(logo_path), dark_image=str(logo_path), size=(168, 168))
-                logo_label = ctk.CTkLabel(nav, image=logo_img, text="")
-                logo_label.pack(pady=(16, 12))
+                logo_img = ctk.CTkImage(light_image=str(logo_path), dark_image=str(logo_path), size=(140, 140))
+                logo_label = ctk.CTkLabel(nav_inner, image=logo_img, text="")
+                logo_label.pack(pady=(0, 12))
             except Exception:
-                # 部分环境 CTkImage 不认 jpg，转成 PNG 原尺寸再显示
                 try:
                     from PIL import Image
                     img = Image.open(logo_path).convert("RGB")
                     fd, path = tempfile.mkstemp(suffix=".png")
                     os.close(fd)
-                    img.save(path)  # 不 resize，保持原图尺寸
-                    logo_img = ctk.CTkImage(light_image=path, dark_image=path, size=(168, 168))
-                    logo_label = ctk.CTkLabel(nav, image=logo_img, text="")
-                    logo_label.pack(pady=(16, 12))
+                    img.save(path)
+                    logo_img = ctk.CTkImage(light_image=path, dark_image=path, size=(140, 140))
+                    logo_label = ctk.CTkLabel(nav_inner, image=logo_img, text="")
+                    logo_label.pack(pady=(0, 12))
                 except Exception:
                     pass
 
@@ -133,26 +149,49 @@ class App(ctk.CTk):
             ("小窗显示", "overlay"),
             ("设置", "settings"),
         ]
+        nav_font = ctk.CTkFont(size=14)
         for text, key in nav_items:
+            row = ctk.CTkFrame(nav_inner, fg_color="transparent", height=40)
+            row.pack(fill="x", pady=2)
+            row.pack_propagate(False)
+            ind = ctk.CTkFrame(row, width=3, fg_color="transparent", corner_radius=0)
+            ind.pack(side="left", fill="y")
+            self._nav_indicators[key] = ind
+            # 容器：先放圆角按钮，再在左侧叠一层直角遮罩，实现「左直角、右圆角」
+            nav_btn_wrapper = ctk.CTkFrame(row, fg_color="transparent")
+            nav_btn_wrapper.pack(side="left", fill="both", expand=True)
             btn = ctk.CTkButton(
-                nav,
+                nav_btn_wrapper,
                 text=text,
                 command=lambda k=key: self._show_page(k),
                 anchor="w",
                 fg_color="transparent",
-                text_color=("#374151", "gray90"),
-                hover_color=("#f3f4f6", "#3a3a3a"),
+                text_color=(TEXT_BODY, "gray90"),
+                hover_color=(BTN_SECONDARY_HOVER, "#3a3a3a"),
                 corner_radius=BTN_RADIUS,
                 height=40,
+                font=nav_font,
             )
-            btn.pack(fill="x", padx=12, pady=6)
+            btn.pack(fill="both", expand=True)
             self._nav_buttons[key] = btn
+            left_cover = ctk.CTkFrame(
+                nav_btn_wrapper, width=BTN_RADIUS, fg_color=BG_NAV, corner_radius=0
+            )
+            left_cover.place(x=0, rely=0, relheight=1)
+            self._nav_left_cover[key] = left_cover
 
-        # 右侧内容区
-        self.content = ctk.CTkFrame(self, fg_color="transparent")
-        self.content.pack(side="left", fill="both", expand=True, padx=(0, 16), pady=16)
+        # 导航与内容区之间的分界线
+        sep = ctk.CTkFrame(self, width=2, fg_color=BORDER_COLOR, corner_radius=0)
+        sep.pack(side="left", fill="y", padx=0, pady=0)
+        sep.pack_propagate(False)
 
-        # 创建各页面
+        # 右侧内容区（与主背景一致，避免遮罩移除时色差）
+        self.content = ctk.CTkFrame(self, fg_color=BG_MAIN)
+        self.content.pack(side="left", fill="both", expand=True, padx=20, pady=20)
+        self.content.grid_rowconfigure(0, weight=1)
+        self.content.grid_columnconfigure(0, weight=1)
+
+        # 创建各页面，叠放在同一 grid 格内
         self._recognition_page = RecognitionPage(self.content, on_start=None, on_stop=None)
         self._pages["recognition"] = self._recognition_page
         self._pages["suggestion"] = SuggestionPage(self.content)
@@ -169,23 +208,44 @@ class App(ctk.CTk):
             self.content,
             on_apply_console_size=self._apply_console_size,
         )
+        for page in self._pages.values():
+            page.grid(row=0, column=0, sticky="nsew")
 
-        self._show_page("recognition")  # 会同时高亮导航
+        # 切换遮罩：与主背景同色，切换时盖住内容区，在背后完成 tkraise 与重绘后降下，消除「从上到下」刷新感
+        self._switch_cover = ctk.CTkFrame(
+            self.content,
+            fg_color=BG_MAIN,
+            corner_radius=0,
+            border_width=0,
+        )
+        self._switch_cover.grid(row=0, column=0, sticky="nsew")
+        self._switch_cover.lower()  # 初始在所有页面之下
+
+        self._show_page("recognition")  # 会同时高亮导航并 tkraise 识别页
 
         # 窗口图标（使用 images/logo.jpg，需 Pillow 支持 jpg）
         self._set_window_icon(logo_path if logo_path.exists() else None)
 
     def _show_page(self, key: str):
-        if self._current_page:
-            self._current_page.pack_forget()
         self._current_nav_key = key
         for k, btn in self._nav_buttons.items():
             if k == key:
                 btn.configure(fg_color=NAV_ACTIVE_FG, text_color=NAV_ACTIVE_TEXT)
             else:
-                btn.configure(fg_color="transparent", text_color=("#374151", "gray90"))
+                btn.configure(fg_color="transparent", text_color=(TEXT_BODY, "gray90"))
+        for k, ind in self._nav_indicators.items():
+            ind.configure(fg_color=ACCENT if k == key else "transparent")
+        for k, left_cover in self._nav_left_cover.items():
+            left_cover.configure(fg_color=NAV_ACTIVE_FG if k == key else BG_NAV)
+
+        # 遮罩盖住内容区 → 背后切换并重绘 → 降下遮罩，避免从上到下的刷新闪烁
+        self._switch_cover.tkraise()
+        self.content.update_idletasks()
+        self._pages[key].tkraise()
+        self.content.update_idletasks()
+        self._switch_cover.lower(self._pages[key])
+
         self._current_page = self._pages[key]
-        self._current_page.pack(fill="both", expand=True)
         if key == "overlay" and hasattr(self._current_page, "refresh_toggle_button"):
             self._current_page.refresh_toggle_button()
 
@@ -297,6 +357,20 @@ class App(ctk.CTk):
 
         self.bind("<Configure>", _on_configure, add=True)
 
+    def _bind_focus_lift(self):
+        """获得焦点时将主窗口提到最前，避免被游戏全屏无边框窗口盖住后难以恢复。仅当焦点落在主窗口本身上时才 focus_set，否则会抢走输入框等子控件焦点导致无法输入。"""
+        def _on_focus_in(event=None):
+            try:
+                if not self.winfo_exists():
+                    return
+                self.lift()
+                # 仅当焦点目标为主窗口时才 focus_set，避免从输入框等子控件抢走焦点
+                if event and getattr(event, "widget", None) == self:
+                    self.focus_set()
+            except Exception:
+                pass
+        self.bind("<FocusIn>", _on_focus_in, add=True)
+
     def _wire_recognition(self):
         """将识别页与 gummy_client、audio_capture 联动"""
         if not self._recognition_page:
@@ -312,6 +386,7 @@ class App(ctk.CTk):
                 return
             self._stop_event = threading.Event()
             self._audio_queue = queue.Queue(maxsize=100)
+            source_lang = settings.get("source_language", "en")
             target_langs = settings.get("translation_target_languages", ["zh"])
             if logger:
                 logger.info("启动识别与翻译: 识别=%s 翻译=%s", transcription_enabled, translation_enabled)
@@ -340,6 +415,7 @@ class App(ctk.CTk):
                 args=(
                     transcription_enabled,
                     translation_enabled,
+                    source_lang,
                     target_langs,
                     self._audio_queue,
                     result_cb,

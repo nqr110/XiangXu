@@ -41,6 +41,7 @@ async def _run_task_async(
     api_key: str,
     transcription_enabled: bool,
     translation_enabled: bool,
+    source_language: str,
     translation_target_languages: list[str],
     audio_queue: queue.Queue,
     result_callback: Callable[[str, str, bool, bool], None],
@@ -59,6 +60,7 @@ async def _run_task_async(
                 "format": "pcm",
                 "transcription_enabled": transcription_enabled,
                 "translation_enabled": translation_enabled,
+                "source_language": source_language,
                 "translation_target_languages": translation_target_languages,
             },
             "input": {},
@@ -182,6 +184,7 @@ async def _run_task_async(
 def run_realtime_session(
     transcription_enabled: bool,
     translation_enabled: bool,
+    source_language: str,
     translation_target_languages: list[str],
     audio_queue: queue.Queue,
     result_callback: Callable[[str, str, bool, bool], None],
@@ -195,7 +198,7 @@ def run_realtime_session(
             logger.error("未配置 API Key，请在设置页输入并保存")
         return
     if DEBUG_MODE and logger:
-        logger.debug("gummy 会话启动: 识别=%s 翻译=%s 目标语言=%s", transcription_enabled, translation_enabled, translation_target_languages)
+        logger.debug("gummy 会话启动: 识别=%s 翻译=%s 源语言=%s 目标语言=%s", transcription_enabled, translation_enabled, source_language, translation_target_languages)
     if not transcription_enabled and not translation_enabled:
         if logger:
             logger.error("至少需开启识别或翻译之一")
@@ -212,6 +215,7 @@ def run_realtime_session(
                 api_key=api_key,
                 transcription_enabled=transcription_enabled,
                 translation_enabled=translation_enabled,
+                source_language=source_language,
                 translation_target_languages=translation_target_languages,
                 audio_queue=audio_queue,
                 result_callback=result_callback,
