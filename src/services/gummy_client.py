@@ -2,16 +2,25 @@
 import asyncio
 import json
 import queue
+import ssl
 import time
 import uuid
 from typing import Callable
 
+import certifi
 import websockets
 
 from src.config import DEBUG_MODE, logger, load_settings
 
 WS_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
 SAMPLE_RATE = 16000
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """使用 certifi 的 CA 包创建 SSL 上下文，解决打包后无法验证证书的问题。"""
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.load_verify_locations(certifi.where())
+    return ctx
 
 
 def _run_async(coro):
@@ -84,6 +93,7 @@ async def _run_task_async(
     except Exception:
         use_additional = True
     connect_kw = {"additional_headers": headers} if use_additional else {"extra_headers": headers}
+    connect_kw["ssl"] = _ssl_context()
 
     try:
         async with websockets.connect(WS_URL, **connect_kw) as ws:

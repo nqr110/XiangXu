@@ -6,6 +6,8 @@ from PyInstaller.utils.hooks import collect_data_files
 
 # CustomTkinter 的 .json、.otf 等需一并打包
 _ctk_datas = collect_data_files("customtkinter")
+# certifi 的 cacert.pem，打包后 SSL 验证需要
+_certifi_datas = collect_data_files("certifi")
 
 # 项目资源：模板与图片（运行时从 RESOURCES_DIR / _MEIPASS 读取）
 _app_datas = [
@@ -18,8 +20,9 @@ a = Analysis(
     ["main.py"],
     pathex=[],
     binaries=[],
-    datas=_ctk_datas + _app_datas,
+    datas=_ctk_datas + _certifi_datas + _app_datas,
     hiddenimports=[
+        "certifi",
         "customtkinter",
         "PIL",
         "PIL._tkinter_finder",
