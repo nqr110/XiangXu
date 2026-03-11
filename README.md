@@ -1,65 +1,106 @@
-# 象胥
+# 响叙 · 实时语音识别与翻译
 
-一个为 ArcRaider 而生的实时语音翻译软件，支持捕获 Windows 系统声音进行流式识别与翻译。  
+基于 Flutter 的 Windows 桌面应用，使用阿里云百炼 gummy-realtime-v1 实现系统音频的实时语音识别与翻译，并支持可配置的字幕悬浮窗。
 
-PS：`象胥`是中国古代对翻译人员或外交使节的称呼，主要用于周代及以后的典籍中。XiangXu
+---
 
-## 功能
+## 环境要求
 
-- 流式语音识别与翻译（接入 阿里云百炼 gummy-realtime-v1）
-- 捕获系统声音（含游戏音频）
-- 浅色主题 GUI，左侧导航：识别与翻译 / 对话建议 / 设置
-- 设置持久化（API Key 等）
-- 历史记录一键清空
-- 调试模式（.env 中 `Debug_Mode=True`）
+- **Flutter**：稳定版，支持 Windows 桌面（建议 3.22+）
+- **平台**：当前仅支持 Windows（后续可扩展其他桌面平台）
+- **阿里云百炼**：需在[百炼控制台](https://bailian.console.aliyun.com/)开通服务并获取 API Key
 
-## 使用（普通用户）
+---
 
-- **请到 [Releases](releases) 下载最新版软件包**，解压后运行其中的 `象胥.exe` 即可
-- **无需安装 Python**
-- 若无法访问 GitHub，可前往云盘下载：<http://www.nqr-lty.com:5244/服务器高速盘> 
-- 启动后点击开始即可开始传译，请尽情探索吧。  
-- 更多说明可参考 B 站视频：<https://account.bilibili.com/account/home?spm_id_from=333.337.0.0> 。
+## 开发者指南
 
-## 如何获取API-KEY
-
-- 只支持阿里云百炼平台的API-KEY
-
-1. 自己获取
-2. 去看我的B站视频
-
-## 环境
-
-- Python 3.11+
-
-## 开发者配置
+### 1. 克隆与依赖
 
 ```bash
-conda env create -f environment.yml
-conda activate XiangXu
-pip install -r requirements.txt
+git clone <仓库地址>
+cd XiangXu
+flutter pub get
 ```
 
-### 配置
+### 2. 调试运行
 
-1. 复制 `.env.example` 为 `.env`
-2. 设置 `Debug_Mode=True` 开启调试
-3. 在应用设置页输入 DashScope API Key 并保存（或写入 config.json）
-
-### 运行
+**命令行运行（推荐）：**
 
 ```bash
-conda activate XiangXu
-python main.py
+# 在项目根目录执行，默认连接 Windows 设备
+flutter run -d windows
 ```
 
-## 如果你想支持我
+**指定设备：**
 
-1. 请附上你的邮箱！！！
-2. 请附上一句话。
-3. 如果可以，你可以附上一个想要我去开发的内容，我会在后续尽量实现。
-4. 非常感谢你的支持，但是我只是一个职业本科的大一的学生，项目一般由我个人维护，会尽量保证更新速度
-5. 最后欢迎扫码进群唠嗑
+```bash
+# 查看可用设备
+flutter devices
 
-<img src="images/QQ群码.jpg" alt="QQ群码" width="200" />
-<img src="images/支付宝收款码.jpg" alt="支付宝收款码" width="200" />
+# 指定 Windows 运行
+flutter run -d windows
+```
+
+**热重载：** 运行中在终端按 `r` 热重载、按 `R` 热重启。
+
+**调试信息：** 应用内打开「调试信息」页面可查看 WebSocket 连接、音频与识别状态等日志，支持复制到剪贴板。
+
+**Windows 控制台说明：** 运行若出现大量 `accessibility_bridge` / `AXTree` 相关报错，多为 Flutter 引擎在 Windows 上的已知问题，可忽略；一般不影响功能。若出现 `Lost connection to device`，可先升级到最新稳定版 Flutter（`flutter upgrade`）再试。
+
+### 3. 静态分析与测试
+
+```bash
+# 代码分析
+flutter analyze
+
+# 运行测试
+flutter test
+```
+
+### 4. 打包发布
+
+**构建 Windows  release：**
+
+```bash
+flutter build windows
+```
+
+产物目录：`build\windows\x64\runner\Release\`  
+其中包含：
+
+- `xiangxu_flutter.exe`：主程序
+- `flutter_windows.dll`、各插件 DLL、`data\` 等：运行依赖
+
+**发布给用户：** 将整个 `Release` 目录打包（如 zip），用户解压后直接运行 `xiangxu_flutter.exe` 即可。
+
+**自定义版本号：**
+
+```bash
+flutter build windows --build-name=1.0.1 --build-number=2
+```
+
+### 5. 首次使用配置
+
+1. 运行应用后进入「设置」页，填写阿里云百炼 **API Key** 并保存。
+2. 在「详细配置」中按需选择识别/翻译模式、源语言与目标语言（默认：自动 → 中文）。
+3. 在「字幕设置」中可开启字幕小窗并调整位置、样式等。
+
+---
+
+## 项目结构简述
+
+| 路径 | 说明 |
+|------|------|
+| `lib/main.dart` | 应用入口，多窗口时根据参数启动主窗口或字幕窗 |
+| `lib/ui/` | 主界面：主导航壳与各子页面（翻译信息、详细配置、字幕设置等） |
+| `lib/overlay/` | 字幕悬浮窗 UI 与窗口创建/通信 |
+| `lib/services/` | 阿里云实时服务、配置持久化、系统音频采集（占位） |
+| `lib/models/` | 配置、识别结果等数据模型 |
+| `lib/providers/` | Riverpod 状态与依赖注入 |
+| `windows/` | Windows 原生工程与构建配置 |
+
+---
+
+## 许可证
+
+见 [LICENSE](LICENSE) 文件。
