@@ -126,6 +126,44 @@ class SettingsPage(ctk.CTkFrame):
         )
         self._console_height.pack(side="left")
 
+        # 按应用捕获实现方式
+        capture_card = ctk.CTkFrame(
+            self,
+            fg_color=BG_CARD,
+            corner_radius=CARD_RADIUS,
+            border_width=1,
+            border_color=BORDER_COLOR,
+        )
+        capture_card.pack(fill="x", pady=(0, 16))
+        capture_inner = ctk.CTkFrame(capture_card, fg_color="transparent")
+        capture_inner.pack(fill="x", padx=24, pady=24)
+        ctk.CTkLabel(
+            capture_inner,
+            text="按应用捕获实现方式",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=TEXT_HEADING,
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            capture_inner,
+            text="选择「仅收录所选应用」或「排除所选应用」时使用的采集方式。仅「C# 辅助工具」会执行按应用捕获；选其他项或不可用时将不收录目标应用声音（或回退为设备环回）。",
+            font=ctk.CTkFont(size=12),
+            text_color=TEXT_BODY,
+        ).pack(anchor="w", pady=(4, 8))
+        self._capture_backend_var = ctk.StringVar(value="external_tool")
+        for value, text in [
+            ("external_tool", "C# 辅助工具（推荐）"),
+            ("python_experimental", "纯 Python 实验实现"),
+        ]:
+            rb = ctk.CTkRadioButton(
+                capture_inner,
+                text=text,
+                variable=self._capture_backend_var,
+                value=value,
+                font=ctk.CTkFont(size=13),
+                text_color=TEXT_BODY,
+            )
+            rb.pack(anchor="w", pady=2)
+
         # 保存按钮（主按钮）
         self.save_btn = ctk.CTkButton(
             self,
@@ -150,6 +188,8 @@ class SettingsPage(ctk.CTkFrame):
         self._console_width.insert(0, str(w))
         self._console_height.delete(0, "end")
         self._console_height.insert(0, str(h))
+        if hasattr(self, "_capture_backend_var"):
+            self._capture_backend_var.set(settings.get("audio_capture_backend", "external_tool"))
 
     def _on_save(self):
         api_key = self.api_key_entry.get().strip()
@@ -168,6 +208,8 @@ class SettingsPage(ctk.CTkFrame):
                 pass
             settings["console_width"] = cw
             settings["console_height"] = ch
+            if hasattr(self, "_capture_backend_var"):
+                settings["audio_capture_backend"] = self._capture_backend_var.get()
             save_settings(settings)
             if self._on_apply_console_size:
                 self._on_apply_console_size(cw, ch)

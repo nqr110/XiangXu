@@ -101,6 +101,11 @@ def load_settings() -> dict:
         "translation_target_languages": ["zh"],
         "console_width": CONSOLE_WIDTH,
         "console_height": CONSOLE_HEIGHT,
+        "audio_filter_mode": "all",
+        "audio_filter_items": [],
+        "audio_capture_backend": "external_tool",
+        "audio_denoise_enabled": False,
+        "audio_voice_enhance_enabled": False,
         **OVERLAY_DEFAULTS,
     }
     if not CONFIG_PATH.exists():

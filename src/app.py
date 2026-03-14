@@ -30,10 +30,10 @@ def _debug_log(location: str, message: str, data: dict, hypothesis_id: str):
     except Exception:
         pass
 # #endregion
+from src.pages.filter_page import FilterPage
 from src.pages.overlay_page import OverlayPage
 from src.pages.recognition_page import RecognitionPage
 from src.pages.settings_page import SettingsPage
-from src.pages.suggestion_page import SuggestionPage
 from src.overlay_window import OverlayWindow
 from src.services.audio_capture import capture_loopback
 from src.services.gummy_client import run_realtime_session
@@ -145,8 +145,8 @@ class App(ctk.CTk):
 
         nav_items = [
             ("识别与翻译", "recognition"),
-            ("对话建议", "suggestion"),
             ("小窗显示", "overlay"),
+            ("过滤器", "filter"),
             ("设置", "settings"),
         ]
         nav_font = ctk.CTkFont(size=14)
@@ -194,7 +194,6 @@ class App(ctk.CTk):
         # 创建各页面，叠放在同一 grid 格内
         self._recognition_page = RecognitionPage(self.content, on_start=None, on_stop=None)
         self._pages["recognition"] = self._recognition_page
-        self._pages["suggestion"] = SuggestionPage(self.content)
         self._overlay_page = OverlayPage(
             self.content,
             on_open_overlay=self._open_overlay,
@@ -204,6 +203,7 @@ class App(ctk.CTk):
             on_lock_overlay=self._set_overlay_lock,
         )
         self._pages["overlay"] = self._overlay_page
+        self._pages["filter"] = FilterPage(self.content)
         self._pages["settings"] = SettingsPage(
             self.content,
             on_apply_console_size=self._apply_console_size,
@@ -248,6 +248,8 @@ class App(ctk.CTk):
         self._current_page = self._pages[key]
         if key == "overlay" and hasattr(self._current_page, "refresh_toggle_button"):
             self._current_page.refresh_toggle_button()
+        if key == "filter" and hasattr(self._current_page, "refresh_list"):
+            self._current_page.refresh_list()
 
     def _is_overlay_open(self) -> bool:
         if not self._overlay_window:
@@ -425,8 +427,14 @@ class App(ctk.CTk):
             )
             self._gummy_thread.start()
             self._recognition_page.set_running(True)
+            filter_page = self._pages.get("filter")
+            if filter_page is not None and hasattr(filter_page, "set_options_locked"):
+                filter_page.set_options_locked(True)
 
         def on_stop():
+            filter_page = self._pages.get("filter")
+            if filter_page is not None and hasattr(filter_page, "set_options_locked"):
+                filter_page.set_options_locked(False)
             if self._stop_event:
                 self._stop_event.set()
             if self._audio_queue:

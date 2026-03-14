@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>AppAudioCapture</RootNamespace>
+    <AssemblyName>AppAudioCapture</AssemblyName>
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+</Project>
